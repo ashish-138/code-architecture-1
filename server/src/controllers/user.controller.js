@@ -47,5 +47,48 @@ const registerUser = asyncHandler(async(req,res)=>{
 })
 
 
+//sign in
+const userSignIn = asyncHandler(async(req,res)=>{
+    const { email, password } = req.body
+    
+    if(!email || !password) throw new ApiError(400, 'All fields are required!')
+    
+    const getUser = await User.findOne({email})
+
+    if(getUser){
+        const passwordValidate = await getUser.isPasswordCorrect(password)
+        if(!passwordValidate) throw new ApiError(401, 'Invalide user credential!')
+    }else{
+        throw new ApiError(401, 'Invalide user credential!')
+    }
+
+    const loggedInUser = await User.findById(getUser._id).select("-password -image")
+
+    const userData = {
+        _id : loggedInUser._id,
+        name: loggedInUser.name,
+        email: loggedInUser.email
+    }
+
+    const accessToken = await generateAccessToken(userData)
+
+    const options = {
+        httpOnly :true,
+        secure : true
+    }
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .json(
+        new ApiResponse(200,{
+            user: loggedInUser, accessToken
+        },
+        "User logged in successfully"
+    )
+    )
+})
+
+
+
 
 export { registerUser }
